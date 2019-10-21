@@ -116,4 +116,72 @@ Compose [] -> Sigma []
 composition function is used to compose multiple sigmas
  *)
 
- 
+type clause = term list;;
+type prop = clause list;;
+exception NOT_RESOLVABLE;;
+exception CONTRADICTION;;
+exception SATISFIABLE;;
+exception UNDESIRED;;
+let rec listfn fn l1 l2 = match (l1,l2) with
+| ([],[]) -> true
+| (x1::xs1, x2::xs2) -> if (fn x1 x2) then listfn xs1 xs2 else false
+;;
+let rec isSame t1 t2 = match (t1, t2) with
+| (V (Variable v1), V (Variable v2)) -> if(v1=v2) then true else false
+| (Node(Symbol (sym1), l1), Node(Symbol (sym2), l2)) -> if(sym1=sym2) then listfn isSame l1 l2 else false
+;;
+let rec remove l a = match l with
+| [] -> []
+| x::xs -> if( isSame x a) then xs else x::(remove xs a)
+;;
+let startwithNot a = match a with
+| Node(Symbol "not", l) -> true
+| _ -> false
+;;
+let extractNot a = match a with
+| Node(Symbol "not", l) -> hd l
+| _ -> raise UNDESIRED
+;;
+let highUnify lit1 lit2 = let lit1Not = startwithNot lit1 in
+							let lit2Not = startwithNot lit2 in
+							match (lit1Not, lit2Not) with
+							| (true, false) -> let t1 = extractNot lit1 in
+												mgu t1 lit2
+							| (false, true) -> let t2 = extractNot lit2 in
+												mgu lit1 t2
+							| _ -> raise NOT_UNIFIABLE
+;;
+let rec calcres cl1 cl2 cl3 cl4 = match cl1 with
+| [] -> raise NOT_UNIFIABLE
+| x::xs -> let rec seciter a l cl3 cl4= match l with
+								| [] -> raise NOT_UNIFIABLE
+								| xsec::xssec -> try let mysig = highUnify a xsec in
+													let cl3new = remove cl3 a in
+													let cl4new = remove cl4 xsec in
+													let newcl = cl3new@cl4new in
+													List.map (subst mysig) newcl 
+												with NOT_UNIFIABLE -> seciter a xssec cl3 cl4 in
+			try seciter x cl2 cl3 cl4
+		with NOT_UNIFIABLE -> calcres xs cl4 cl3 cl4
+;;
+
+let rec selectOtherClause cl possClList = match possClList with
+| [] -> raise NOT_UNIFIABLE
+| x::xs -> try calcres cl x cl x
+			with NOT_UNIFIABLE ->  selectOtherClause cl xs
+;;
+
+let rec selectClause prop = match prop with
+| [] -> raise SATISFIABLE
+| x::xs -> if (List.length x ==0) then raise CONTRADICTION else 
+			try selectOtherClause x xs
+		with NOT_UNIFIABLE -> selectClause xs
+;;
+
+let rec resolution prop = let newcl = selectClause prop in
+							resolution newcl::prop
+;;
+
+
+
+
