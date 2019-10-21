@@ -136,6 +136,10 @@ let rec remove l a = match l with
 | [] -> []
 | x::xs -> if( isSame x a) then xs else x::(remove xs a)
 ;;
+let rec isMember cl prop = match prop with
+| [] -> false
+| x::xs -> if (listfn isSame cl x) then true else isMember cl xs
+;;
 let startwithNot a = match a with
 | Node(Symbol "not", l) -> true
 | _ -> false
@@ -153,37 +157,78 @@ let highUnify lit1 lit2 = let lit1Not = startwithNot lit1 in
 												mgu lit1 t2
 							| _ -> raise NOT_UNIFIABLE
 ;;
-let rec calcres cl1 cl2 cl3 cl4 = match cl1 with
+let rec calcres cl1 cl2 cl3 cl4 totalprop = match cl1 with
 | [] -> raise NOT_UNIFIABLE
-| x::xs -> let rec seciter a l cl3 cl4= match l with
+| x::xs -> let rec seciter a l cl3 cl4 totalprop = match l with
 								| [] -> raise NOT_UNIFIABLE
 								| xsec::xssec -> try let mysig = highUnify a xsec in
 													let cl3new = remove cl3 a in
 													let cl4new = remove cl4 xsec in
 													let newcl = cl3new@cl4new in
-													List.map (subst mysig) newcl 
-												with NOT_UNIFIABLE -> seciter a xssec cl3 cl4 in
-			try seciter x cl2 cl3 cl4
-		with NOT_UNIFIABLE -> calcres xs cl4 cl3 cl4
+													let subcl = List.map (subst mysig) newcl in
+													if (isMember subcl totalprop) then (raise NOT_UNIFIABLE) else subcl
+												with NOT_UNIFIABLE -> seciter a xssec cl3 cl4 totalprop in
+			try seciter x cl2 cl3 cl4 totalprop
+		with NOT_UNIFIABLE -> calcres xs cl4 cl3 cl4 totalprop
 ;;
 
-let rec selectOtherClause cl possClList = match possClList with
+let rec selectOtherClause cl possClList totalprop = match possClList with
 | [] -> raise NOT_UNIFIABLE
-| x::xs -> try calcres cl x cl x
-			with NOT_UNIFIABLE ->  selectOtherClause cl xs
+| x::xs -> try calcres cl x cl x totalprop
+			with NOT_UNIFIABLE ->  selectOtherClause cl xs totalprop
 ;;
 
-let rec selectClause prop = match prop with
+let rec selectClauseReal prop totalprop = match prop with
 | [] -> raise SATISFIABLE
 | x::xs -> if (List.length x ==0) then raise CONTRADICTION else 
-			try selectOtherClause x xs
-		with NOT_UNIFIABLE -> selectClause xs
+			try selectOtherClause x xs totalprop
+		with NOT_UNIFIABLE -> selectClauseReal xs totalprop
 ;;
+
+let selectClause prop = selectClauseReal prop prop;;
 
 let rec resolution prop = let newcl = selectClause prop in
 							resolution (newcl::prop)
 ;;
+(* 1 *)
+let testprop0 = [];;
+let ansprop0 = resolution testprop0;;
+(* 2 *)
+let testt1 = Node (Symbol("loves"), []);;
+let testt2 = Node (Symbol("not"), [testt1]);;
+let testprop1 = [[testt1];[testt2]];;
+let ansprop1 = resolution testprop1;;
+(* 3 *)
+let lulu = Node(Symbol("Lulu"),[]);;
+let fifi = Node(Symbol("Fifi"),[]);;
+let motherlulufifi = Node (Symbol("Mother"), [lulu;fifi]);;
+let alivelulu = Node (Symbol("Alive"), [lulu]);;
+let olderlulufifi = Node(Symbol("Older"), [lulu;fifi]);;
+let notolderlulufifi = Node (Symbol("not"), [olderlulufifi]);;
+let motherxy = Node(Symbol("Mother"), [V(Variable("x")); V(Variable("y"))]);;
+let notmotherxy = Node(Symbol("not"), [motherxy]);;
+let parentxy = Node(Symbol("Parent"), [V(Variable("x")); V(Variable("y"))]);;
+let notparentxy = Node(Symbol("not"), [parentxy]);;
+let alivex = Node(Symbol("Alive"), [V(Variable("x"))]);;
+let notalivex = Node(Symbol("not"), [alivex]);;
+let olderxy = Node(Symbol("Older"), [V(Variable("x")); V(Variable("y"))]);;
+let lfcl1 = [motherlulufifi];;
+let lfcl2 = [alivelulu];;
+let lfcl3 = [notolderlulufifi];;
+let lfcl4 = [notmotherxy;parentxy];;
+let lfcl5 = [notparentxy;notalivex;olderxy];;
+let lfprop = [lfcl1;lfcl2;lfcl3;lfcl4;lfcl5];;
+let anslf = resolution lfprop;;
+(* 4 *)
+let testsatprop1 = [[testt1]];;
+let anssat = resolution testsatprop1;;
 
+(* 
+Yes my algorithm as it always reaches a fixed point if satisfiable after 
+which proposition can not be extended further and the problem turns out to 
+be satisfiable. Otherwise we reach a empty clause and terminate
+ *)
+ 
 
 
 
