@@ -124,11 +124,13 @@ exception SATISFIABLE;;
 exception UNDESIRED;;
 let rec listfn fn l1 l2 = match (l1,l2) with
 | ([],[]) -> true
-| (x1::xs1, x2::xs2) -> if (fn x1 x2) then listfn xs1 xs2 else false
+| (x1::xs1, x2::xs2) -> if (fn x1 x2) then listfn fn xs1 xs2 else false
+| _ -> false
 ;;
 let rec isSame t1 t2 = match (t1, t2) with
 | (V (Variable v1), V (Variable v2)) -> if(v1=v2) then true else false
 | (Node(Symbol (sym1), l1), Node(Symbol (sym2), l2)) -> if(sym1=sym2) then listfn isSame l1 l2 else false
+| _ -> false
 ;;
 let rec remove l a = match l with
 | [] -> []
@@ -179,7 +181,7 @@ let rec selectClause prop = match prop with
 ;;
 
 let rec resolution prop = let newcl = selectClause prop in
-							resolution newcl::prop
+							resolution (newcl::prop)
 ;;
 
 
