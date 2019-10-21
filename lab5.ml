@@ -180,7 +180,7 @@ let rec selectOtherClause cl possClList totalprop = match possClList with
 
 let rec selectClauseReal prop totalprop = match prop with
 | [] -> raise SATISFIABLE
-| x::xs -> if (List.length x ==0) then raise CONTRADICTION else 
+| x::xs -> if (List.length x =0) then raise CONTRADICTION else 
 			try selectOtherClause x xs totalprop
 		with NOT_UNIFIABLE -> selectClauseReal xs totalprop
 ;;
